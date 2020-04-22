@@ -1,0 +1,2 @@
+master.txt
+我是主分支，另外还有stable、develop分支；还有辅助分支：feature分支、release分支、bugfix分支
