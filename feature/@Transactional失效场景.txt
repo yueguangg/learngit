@@ -1,0 +1,117 @@
+1. 数据库引擎不支持事务
+   以mysql为例，其MyISAM引擎是不支持事务操作的，InnoDB才支持事务的引擎。从mysql5.5开始默认引擎是InnoDB，之前默认的是MyISAM，所以若底层引擎不支持事务注解也无能为力。。
+
+2. 数据源没有配置事务管理器
+	@Bean
+	public PlatformTransactionManager transactionManager(DataSource dataSource) {
+	    return new DataSourceTransactionManager(dataSource);
+	}
+	当前数据源若没有配置事务管理器，也是白搭。
+
+3. 实例没有被Spring管理
+   我们会把事务注解加到service层，如果没有@Service注解，这个类就不会被加载成一个Bean，那这个类就不会被spring管理，事务自然就失效了。。
+
+4.@Transactional 注解属性 propagation 设置错误
+	@Service
+	public class OrderServiceImpl implements OrderService {
+	 
+	    @Transactional
+	    public void update(Order order) {
+	        updateOrder(order);
+	    }
+	 
+	    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+	    public void updateOrder(Order order) {
+	        // update order
+	    }
+	 
+	}
+	Propagation.NOT_SUPPORTED：表示不以事务运行，若当前存在事务则挂起。
+
+5.方法不是public
+	@Transactional注解只能用于public方法上，否则事务会失效，如果要用在非public方法上，可开启@AspectJ代理模式（切面织入的方法）
+
+	Spring AOP基于代理模式和装饰器模式，使用包装的方式，将实际的service实例包装到代理类中，因此service方法中的this并不会感知代理对象，而事务是设置在代理对象上的。
+	不同于AOP，AspectJ使用加载时织入的方式，支持所有的pointcut，因此可以支持内部方法的事务设置。
+
+6.该类自身方法内部调用
+	开发中避免不了会对同一个类里面的方法调用，比如有一个类Test，它的一个方法A，A再调用本类的方法B（不论方法B是用public还是private修饰），但方法A没有声明注解事务，而B方法有。则外部调用方法A之后，方法B的事务是不会起作用的。这也是经常犯错误的一个地方。
+
+	那为啥会出现这种情况？其实还是由于使用Spring AOP代理造成的，因为只有当事务方法被当前类以外的代码调用时，才会由Spring生成的代理对象来管理。
+	
+
+	栗子一：update方法上面没有加 @Transactional 注解，调用有 @Transactional 注解的 updateOrder 方法
+	@Service
+	public class OrderServiceImpl implements OrderService {
+	 
+	    public void update(Order order) {
+	        updateOrder(order);
+	    }
+	 
+	    @Transactional
+	    public void updateOrder(Order order) {
+	        // update order
+	    }
+	 
+	}
+
+	栗子二：update和updateOrder方法上加了 @Transactional，updateOrder 加了 REQUIRES_NEW 新开启一个事务
+	@Service
+	public class OrderServiceImpl implements OrderService {
+	 
+	    @Transactional
+	    public void update(Order order) {
+	        updateOrder(order);
+	    }
+	 
+	    @Transactional(propagation = Propagation.REQUIRES_NEW)
+	    public void updateOrder(Order order) {
+	        // update order
+	    }
+	 
+	}
+
+	以上两个栗子事务不起效，自身调用没有经过Spring的代理类，默认只有外部调用事务才会生效。
+
+	解决方法：原文作者认为第一种方法不优雅，自己觉得第一种方法方便简单，功能上没什么差异。
+
+	1.类中注入自己，用注入的对象调用另一个方法；
+
+	2.将被调用的方法，写在另一个service中
+
+7.异常被吃了
+	@Service
+	public class EmployeeServiceImpl implements EmployeeService{
+	    @Transactional
+	    public void updateEmployee(Employee employee){
+	        try{
+	 
+	        }catch{
+	 
+	        }
+	    }
+	 
+	}
+	把异常吃了，然后又不抛出来，事务怎么回滚呢？
+
+8. 异常类型错误【@Transactional 注解属性 rollbackFor 设置错误】
+	上面的例子再抛出一个异常
+	@Service
+	public class OrderServiceImpl implements OrderService {
+	 
+	    @Transactional
+	    public void updateOrder(Order order) {
+	        try {
+	            // update order
+	        } catch {
+	            throw new Exception("更新错误");
+	        }
+	    }
+	}
+	这样事务也是不生效的，因为默认回滚的是：RuntimeException和Error
+
+	如果想触发其他异常的回滚，加如下配置：
+	@Transactional(rollbackFor = Exception.class)
+	这个配置仅限于Throwable异常类及其子类。
+
+	八种事务失效的场景，其实发生最多就是自身调用、异常被吃、异常抛出类型不对这三个了。
