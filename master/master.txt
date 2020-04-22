@@ -29,5 +29,5 @@ release分支作为预发布分支，release 分支从 develop 分支 fork 
 
 bugfix 分支用来修复线上bug。当线上代码出现 bug 时，我们基于 stable 分支开一个bugfix分支，修复 bug之后再将 bugfix分支合并到stable分支并进行发布，同时develop 分支作为最新最全的代码分支，bugfix分支也需要合并到 develop 分支上去。
 
-通过辅助分支，我们可以做到：团队成员之间并行开发，增加新功能更加容易，可以同时进行开发和版本发布、线上bug修复等。
+stable？
 
