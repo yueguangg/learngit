@@ -18,3 +18,12 @@ feature 分支用来开发具体的功能，一般基于develop分支，最后�
     比如，目前我们针对develop分支来做功能开发，在开发的过程中会有紧急需求需要开发，且在本次版本发布时间之前要能测试完成。我们可以基于之前稳定版本另开一个feature分支来做紧急需求的开发，发布并进行测试，完成之后再合并到develop分支上。
 
 
+
+
+release分支作为预发布分支，release 分支从 develop 分支 fork 出来，最终会合并到 develop 分支和 stable 分支，合并到 stable分支上就是可以发布的代码了。
+
+    为什么我从develop分支fork出来，还要合并到develop分支中呢？因为我们在release分支上难免会有bug产生，修复bug也是在release分支上，所以必须要合并到develop分支。
+
+
+
+bugfix 分支用来修复线上bug。当线上代码出现 bug 时，我们基于 stable 分支开一个bugfix分支，修复 bug之后再将 bugfix分支合并到stable分支并进行发布，同时develop 分支作为最新最全的代码分支，bugfix分支也需要合并到 develop 分支上去。
